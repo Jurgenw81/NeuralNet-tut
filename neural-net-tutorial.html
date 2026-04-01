@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neural Network Deep Dive — Interactive Tutorial</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface2: #1a1a26;
+  --border: #2a2a3a;
+  --text: #e0dfe8;
+  --text-dim: #8888a0;
+  --accent: #6ee7b7;
+  --accent2: #38bdf8;
+  --accent3: #f472b6;
+  --accent4: #fbbf24;
+  --danger: #ef4444;
+  --neuron: #6ee7b7;
+  --synapse: rgba(110, 231, 183, 0.3);
+  --glow: rgba(110, 231, 183, 0.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-weight: 300;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+.grain {
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none; opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* NAV */
+nav {
+  position: fixed; top: 0; left: 0; width: 260px; height: 100vh;
+  background: var(--surface); border-right: 1px solid var(--border);
+  z-index: 100; overflow-y: auto; padding: 24px 0;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+nav::-webkit-scrollbar { width: 4px; }
+nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.nav-logo {
+  padding: 0 24px 24px; border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.nav-logo h1 {
+  font-size: 18px; font-weight: 800; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.nav-logo p { font-size: 11px; color: var(--text-dim); margin-top: 4px; text-transform: uppercase; letter-spacing: 2px; }
+
+.nav-section { padding: 8px 24px; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); margin-top: 12px; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 24px; cursor: pointer; transition: all 0.2s;
+  font-size: 13px; color: var(--text-dim); border-left: 2px solid transparent;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--glow); }
+.nav-item .num { font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5; width: 18px; }
+
+/* MAIN */
+main {
+  margin-left: 260px; padding: 40px 60px 100px; max-width: 1100px;
+}
+
+.section {
+  display: none; animation: fadeUp 0.4s ease;
+}
+.section.active { display: block; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+h2 {
+  font-size: 36px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+h3 { font-size: 20px; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+h4 { font-size: 15px; font-weight: 600; margin: 20px 0 8px; color: var(--accent2); }
+
+.subtitle { font-size: 14px; color: var(--text-dim); margin-bottom: 32px; text-transform: uppercase; letter-spacing: 3px; }
+
+p { margin-bottom: 16px; font-size: 15px; color: var(--text); max-width: 720px; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 24px; margin: 20px 0; position: relative; overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3));
+}
+
+.math {
+  font-family: 'JetBrains Mono', monospace; font-size: 14px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px 20px; margin: 16px 0;
+  color: var(--accent); overflow-x: auto;
+}
+
+.tag {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+  margin-right: 6px; margin-bottom: 6px;
+}
+.tag-green { background: rgba(110, 231, 183, 0.15); color: var(--accent); }
+.tag-blue { background: rgba(56, 189, 248, 0.15); color: var(--accent2); }
+.tag-pink { background: rgba(244, 114, 182, 0.15); color: var(--accent3); }
+.tag-yellow { background: rgba(251, 191, 36, 0.15); color: var(--accent4); }
+
+/* INTERACTIVE CANVAS AREAS */
+.interactive-area {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  margin: 24px 0; overflow: hidden;
+}
+.interactive-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.interactive-header span { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); }
+.interactive-body { padding: 20px; }
+.interactive-body canvas { display: block; margin: 0 auto; border-radius: 8px; }
+
+.controls {
+  display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; align-items: center;
+}
+.btn {
+  padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text); font-family: 'Outfit'; font-size: 13px;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+.btn.primary:hover { opacity: 0.85; }
+
+label.slider-label {
+  display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-dim);
+}
+input[type="range"] {
+  -webkit-appearance: none; width: 120px; height: 4px; border-radius: 2px;
+  background: var(--border); outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); cursor: pointer;
+}
+
+.output-log {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  background: #0d0d14; border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px; margin-top: 12px; max-height: 200px; overflow-y: auto;
+  color: var(--text-dim); line-height: 1.8;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.output-log .highlight { color: var(--accent); }
+.output-log .val { color: var(--accent4); }
+.output-log .err { color: var(--danger); }
+.output-log .info { color: var(--accent2); }
+
+/* NAV BUTTONS bottom */
+.nav-buttons {
+  display: flex; justify-content: space-between; margin-top: 48px;
+  padding-top: 24px; border-top: 1px solid var(--border);
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  nav { display: none; }
+  main { margin-left: 0; padding: 24px 20px 80px; }
+}
+
+/* Drawing canvas for CNN */
+.draw-canvas {
+  border: 2px solid var(--border); border-radius: 8px; cursor: crosshair;
+  image-rendering: pixelated; background: #000;
+}
+
+.step-indicator {
+  display: flex; gap: 4px; margin-bottom: 20px;
+}
+.step-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.3s;
+}
+.step-dot.active { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.step-dot.done { background: var(--accent2); }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav id="nav">
+  <div class="nav-logo">
+    <h1>NN Deep Dive</h1>
+    <p>Interactive Tutorial</p>
+  </div>
+
+  <div class="nav-section">Foundations</div>
+  <div class="nav-item active" data-section="intro"><span class="num">00</span> Introduction</div>
+  <div class="nav-item" data-section="neuron"><span class="num">01</span> The Neuron</div>
+  <div class="nav-item" data-section="activations"><span class="num">02</span> Activation Functions</div>
+  <div class="nav-item" data-section="layers"><span class="num">03</span> Layers & Architecture</div>
+
+  <div class="nav-section">Training</div>
+  <div class="nav-item" data-section="forward"><span class="num">04</span> Forward Pass</div>
+  <div class="nav-item" data-section="loss"><span class="num">05</span> Loss Functions</div>
+  <div class="nav-item" data-section="backprop"><span class="num">06</span> Backpropagation</div>
+  <div class="nav-item" data-section="optimizer"><span class="num">07</span> Optimizers & Learning</div>
+
+  <div class="nav-section">Convolutional NNs</div>
+  <div class="nav-item" data-section="cnn-intro"><span class="num">08</span> CNN Overview</div>
+  <div class="nav-item" data-section="convolution"><span class="num">09</span> Convolution Layer</div>
+  <div class="nav-item" data-section="pooling"><span class="num">10</span> Pooling & Stride</div>
+  <div class="nav-item" data-section="cnn-full"><span class="num">11</span> Full CNN Pipeline</div>
+</nav>
+
+<main>
+  <!-- 00 INTRO -->
+  <div class="section active" id="intro">
+    <div class="subtitle">Chapter 00</div>
+    <h2>Welcome to Neural Networks</h2>
+    <p>This interactive tutorial will take you from the very basics of a single neuron all the way through to convolutional neural networks (CNNs). Every concept is explained in detail and paired with live, interactive visualizations you can play with.</p>
+
+    <div class="card">
+      <h4>What You'll Learn</h4>
+      <p><span class="tag tag-green">Neurons</span> <span class="tag tag-blue">Activations</span> <span class="tag tag-pink">Layers</span> <span class="tag tag-yellow">Backpropagation</span></p>
+      <p>Starting with the fundamental building block — a single neuron that takes inputs, applies weights, and produces an output — you'll progressively build up to full network architectures, understand how they learn through backpropagation, and see how CNNs exploit spatial structure in images.</p>
+    </div>
+
+    <h3>The Big Picture</h3>
+    <p>A neural network is a function approximator. Given inputs (like pixel values of an image), it produces outputs (like "this is a cat"). It learns by adjusting internal parameters (weights and biases) to minimize the difference between its predictions and the actual answers.</p>
+    <p>The learning loop is: <strong>Forward Pass</strong> (make a prediction) → <strong>Compute Loss</strong> (how wrong were we?) → <strong>Backpropagation</strong> (figure out which parameters caused the error) → <strong>Update Weights</strong> (adjust parameters to reduce error). Repeat thousands of times.</p>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: The Learning Loop</span></div>
+      <div class="interactive-body">
+        <canvas id="introCanvas" width="700" height="250"></canvas>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <div></div>
+      <button class="btn primary" onclick="goTo('neuron')">Next: The Neuron →</button>
+    </div>
+  </div>
+
+  <!-- 01 NEURON -->
+  <div class="section" id="neuron">
+    <div class="subtitle">Chapter 01</div>
+    <h2>The Neuron</h2>
+    <p>A neuron is the fundamental computation unit. Inspired by biological neurons, it takes multiple inputs, multiplies each by a weight, sums them up, adds a bias, and passes the result through an activation function.</p>
+
+    <div class="math">output = activation( w₁·x₁ + w₂·x₂ + ... + wₙ·xₙ + bias )</div>
+
+    <h3>Step-by-Step Breakdown</h3>
+    <div class="card">
+      <h4>1. Inputs (x₁, x₂, ...)</h4>
+      <p>These are the data flowing into the neuron. In the first layer, these are your raw features (pixel values, measurements, etc.). In deeper layers, these are outputs from previous neurons.</p>
+
+      <h4>2. Weights (w₁, w₂, ...)</h4>
+      <p>Each input has an associated weight. Weights determine how important each input is. A large positive weight amplifies the input; a large negative weight inverts it. A weight near zero means the neuron mostly ignores that input. <strong>These are the parameters the network learns.</strong></p>
+
+      <h4>3. Weighted Sum (z)</h4>
+      <p>Multiply each input by its weight and add them all up: z = Σ(wᵢ · xᵢ). This is a linear combination — essentially a dot product between the input vector and weight vector.</p>
+
+      <h4>4. Bias (b)</h4>
+      <p>A bias is added to the weighted sum: z = Σ(wᵢ · xᵢ) + b. The bias allows the neuron to shift its activation threshold. Without bias, the neuron's decision boundary must pass through the origin.</p>
+
+      <h4>5. Activation Function</h4>
+      <p>The weighted sum + bias is passed through a non-linear activation function. Without this, stacking layers would be pointless (a stack of linear functions is still linear). The activation introduces non-linearity, allowing the network to learn complex patterns.</p>
+    </div>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: Single Neuron</span></div>
+      <div class="interactive-body">
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Drag the sliders to change inputs, weights, and bias. Watch the output update in real time.</p>
+        <div class="controls">
+          <label class="slider-label">x₁: <input type="range" id="n_x1" min="-2" max="2" step="0.1" value="1"> <span id="n_x1v">1.0</span></label>
+          <label class="slider-label">w₁: <input type="range" id="n_w1" min="-2" max="2" step="0.1" value="0.5"> <span id="n_w1v">0.5</span></label>
+        </div>
+        <div class="controls">
+          <label class="slider-label">x₂: <input type="range" id="n_x2" min="-2" max="2" step="0.1" value="-0.5"> <span id="n_x2v">-0.5</span></label>
+          <label class="slider-label">w₂: <input type="range" id="n_w2" min="-2" max="2" step="0.1" value="0.8"> <span id="n_w2v">0.8</span></label>
+        </div>
+        <div class="controls">
+          <label class="slider-label">bias: <input type="range" id="n_b" min="-2" max="2" step="0.1" value="0.1"> <span id="n_bv">0.1</span></label>
+        </div>
+        <canvas id="neuronCanvas" width="700" height="220"></canvas>
+        <div class="output-log" id="neuronLog"></div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="goTo('intro')">← Introduction</button>
+      <button class="btn primary" onclick="goTo('activations')">Next: Activations →</button>
+    </div>
+  </div>
+
+  <!-- 02 ACTIVATIONS -->
+  <div class="section" id="activations">
+    <div class="subtitle">Chapter 02</div>
+    <h2>Activation Functions</h2>
+    <p>Activation functions introduce non-linearity. Without them, a neural network — no matter how many layers — would collapse into a single linear transformation. The choice of activation function affects how the network learns and what problems it can solve.</p>
+
+    <div class="card">
+      <h4>Sigmoid: σ(z) = 1 / (1 + e⁻ᶻ)</h4>
+      <p>Squashes output to (0, 1). Historically popular but suffers from <strong>vanishing gradients</strong> — for very large or small z, the gradient approaches zero, making learning extremely slow in deep networks. Still used in output layers for binary classification.</p>
+
+      <h4>Tanh: tanh(z) = (eᶻ - e⁻ᶻ) / (eᶻ + e⁻ᶻ)</h4>
+      <p>Squashes output to (-1, 1). Zero-centered, which helps with gradient flow compared to sigmoid. But still has vanishing gradient problems at extremes.</p>
+
+      <h4>ReLU: max(0, z)</h4>
+      <p>Returns z if positive, 0 otherwise. Simple, fast, and the default choice for hidden layers. Solves vanishing gradient for positive values. Problem: <strong>"dying ReLU"</strong> — neurons that output 0 for all inputs stop learning entirely since the gradient is always 0.</p>
+
+      <h4>Leaky ReLU: max(0.01z, z)</h4>
+      <p>Like ReLU but allows a small gradient (0.01) for negative values. This prevents the dying ReLU problem while maintaining most of ReLU's benefits.</p>
+
+      <h4>Softmax (for output layers)</h4>
+      <p>Converts a vector of raw scores into a probability distribution that sums to 1. Used in the final layer for multi-class classification. softmax(zᵢ) = eᶻⁱ / Σeᶻʲ</p>
+    </div>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: Compare Activation Functions</span></div>
+      <div class="interactive-body">
+        <div class="controls">
+          <button class="btn primary" onclick="setActivation('sigmoid')">Sigmoid</button>
+          <button class="btn" onclick="setActivation('tanh')">Tanh</button>
+          <button class="btn" onclick="setActivation('relu')">ReLU</button>
+          <button class="btn" onclick="setActivation('leaky')">Leaky ReLU</button>
+        </div>
+        <canvas id="actCanvas" width="700" height="300"></canvas>
+        <div class="output-log" id="actLog"></div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="goTo('neuron')">← The Neuron</button>
+      <button class="btn primary" onclick="goTo('layers')">Next: Layers →</button>
+    </div>
+  </div>
+
+  <!-- 03 LAYERS -->
+  <div class="section" id="layers">
+    <div class="subtitle">Chapter 03</div>
+    <h2>Layers & Architecture</h2>
+    <p>Neurons are organized into layers. A typical feedforward neural network has an input layer, one or more hidden layers, and an output layer. Each neuron in one layer connects to every neuron in the next — called a <strong>fully connected</strong> (or dense) layer.</p>
+
+    <div class="card">
+      <h4>Input Layer</h4>
+      <p>Not really "neurons" — just placeholders that pass your raw data into the network. The size equals the number of features in your data (e.g., 784 for a 28×28 grayscale image).</p>
+
+      <h4>Hidden Layers</h4>
+      <p>Where the actual learning happens. Each layer transforms its input through weighted sums, biases, and activations. More layers = ability to learn more abstract features. The first hidden layer might detect edges; deeper layers might detect shapes, faces, or concepts.</p>
+
+      <h4>Output Layer</h4>
+      <p>Produces the final prediction. For classification: one neuron per class with softmax activation. For regression: a single neuron with linear (no) activation. For binary classification: one neuron with sigmoid activation.</p>
+
+      <h4>Depth vs. Width</h4>
+      <p><strong>Width</strong> (neurons per layer) affects the network's capacity within each level of abstraction. <strong>Depth</strong> (number of layers) affects the network's ability to learn hierarchical features. Deep networks are generally more parameter-efficient than wide-shallow ones for complex tasks.</p>
+    </div>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: Build a Network Architecture</span></div>
+      <div class="interactive-body">
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Adjust the number of neurons in each hidden layer. Watch the network reshape.</p>
+        <div class="controls">
+          <label class="slider-label">Hidden 1: <input type="range" id="l_h1" min="1" max="8" step="1" value="4"> <span id="l_h1v">4</span></label>
+          <label class="slider-label">Hidden 2: <input type="range" id="l_h2" min="1" max="8" step="1" value="5"> <span id="l_h2v">5</span></label>
+          <label class="slider-label">Hidden 3: <input type="range" id="l_h3" min="0" max="8" step="1" value="3"> <span id="l_h3v">3</span></label>
+        </div>
+        <canvas id="layerCanvas" width="700" height="320"></canvas>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="goTo('activations')">← Activations</button>
+      <button class="btn primary" onclick="goTo('forward')">Next: Forward Pass →</button>
+    </div>
+  </div>
+
+  <!-- 04 FORWARD PASS -->
+  <div class="section" id="forward">
+    <div class="subtitle">Chapter 04</div>
+    <h2>Forward Pass</h2>
+    <p>The forward pass is when data flows from input to output through the network. At each layer, we compute the weighted sum of inputs, add the bias, apply the activation function, and pass the result to the next layer.</p>
+
+    <div class="math">For each layer l:  z⁽ˡ⁾ = W⁽ˡ⁾ · a⁽ˡ⁻¹⁾ + b⁽ˡ⁾   then   a⁽ˡ⁾ = activation(z⁽ˡ⁾)</div>
+
+    <div class="card">
+      <h4>Step-by-step for a 2-layer network</h4>
+      <p><strong>Input:</strong> x = [x₁, x₂] — your raw data.</p>
+      <p><strong>Layer 1:</strong> Compute z₁ = W₁·x + b₁ (matrix multiplication), then a₁ = ReLU(z₁). The output a₁ is a vector of activations — one per neuron in this layer.</p>
+      <p><strong>Layer 2 (output):</strong> Compute z₂ = W₂·a₁ + b₂, then ŷ = sigmoid(z₂) or softmax(z₂). This is your prediction.</p>
+      <p>We save all intermediate values (z and a at each layer) because backpropagation needs them to compute gradients.</p>
+    </div>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: Watch a Forward Pass</span></div>
+      <div class="interactive-body">
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Click "Run Forward Pass" to see data flow through a small network. Values are computed step by step.</p>
+        <div class="controls">
+          <button class="btn primary" onclick="runForwardPass()">Run Forward Pass</button>
+          <button class="btn" onclick="resetForwardPass()">Reset</button>
+        </div>
+        <canvas id="forwardCanvas" width="700" height="280"></canvas>
+        <div class="output-log" id="forwardLog"></div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="goTo('layers')">← Layers</button>
+      <button class="btn primary" onclick="goTo('loss')">Next: Loss Functions →</button>
+    </div>
+  </div>
+
+  <!-- 05 LOSS -->
+  <div class="section" id="loss">
+    <div class="subtitle">Chapter 05</div>
+    <h2>Loss Functions</h2>
+    <p>The loss function measures how wrong the network's prediction is compared to the actual target. Training a neural network means minimizing this loss. The choice of loss function depends on the task.</p>
+
+    <div class="card">
+      <h4>Mean Squared Error (MSE) — Regression</h4>
+      <div class="math">MSE = (1/n) · Σ(yᵢ - ŷᵢ)²</div>
+      <p>Squares the difference between predicted and actual values, then averages. Penalizes large errors heavily due to squaring. Used when predicting continuous values (prices, temperatures, etc.).</p>
+
+      <h4>Binary Cross-Entropy — Binary Classification</h4>
+      <div class="math">BCE = -(1/n) · Σ[ yᵢ·log(ŷᵢ) + (1-yᵢ)·log(1-ŷᵢ) ]</div>
+      <p>Measures the "distance" between two probability distributions: the predicted probabilities and the true labels (0 or 1). When the prediction is confident and correct, loss is low. When confident and wrong, loss shoots up dramatically — this creates a strong gradient signal for learning.</p>
+
+      <h4>Categorical Cross-Entropy — Multi-class Classification</h4>
+      <div class="math">CCE = -Σ yᵢ · log(ŷᵢ)   (summed over all classes)</div>
+      <p>Extension of binary cross-entropy for multiple classes. Used with softmax output. Only the true class contributes to the loss (since yᵢ = 0 for all incorrect classes).</p>
+    </div>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: Loss Landscape</span></div>
+      <div class="interactive-body">
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Drag the prediction slider to see how loss changes. Notice how loss increases exponentially as predictions diverge from the target.</p>
+        <div class="controls">
+          <label class="slider-label">Target (y): <span style="color:var(--accent)">1.0</span></label>
+          <label class="slider-label">Prediction (ŷ): <input type="range" id="loss_pred" min="0.01" max="0.99" step="0.01" value="0.5"> <span id="loss_predv">0.50</span></label>
+          <label class="slider-label">
+            Loss type:
+            <select id="loss_type" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-family:inherit;">
+              <option value="mse">MSE</option>
+              <option value="bce" selected>Binary Cross-Entropy</option>
+            </select>
+          </label>
+        </div>
+        <canvas id="lossCanvas" width="700" height="260"></canvas>
+        <div class="output-log" id="lossLog"></div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="goTo('forward')">← Forward Pass</button>
+      <button class="btn primary" onclick="goTo('backprop')">Next: Backpropagation →</button>
+    </div>
+  </div>
+
+  <!-- 06 BACKPROPAGATION -->
+  <div class="section" id="backprop">
+    <div class="subtitle">Chapter 06</div>
+    <h2>Backpropagation</h2>
+    <p>Backpropagation is the algorithm that computes gradients of the loss with respect to every weight in the network. It uses the <strong>chain rule</strong> of calculus to propagate the error signal backwards from the output layer to the input layer.</p>
+
+    <div class="card">
+      <h4>Why Backprop?</h4>
+      <p>To update weights, we need to know: "If I change this weight by a tiny amount, how much does the loss change?" This is the gradient ∂L/∂w. Computing this directly for every weight would be impossibly expensive. Backprop does it efficiently by reusing intermediate computations.</p>
+
+      <h4>The Chain Rule</h4>
+      <div class="math">∂L/∂w = ∂L/∂a · ∂a/∂z · ∂z/∂w</div>
+      <p>The loss depends on the activation, which depends on the weighted sum, which depends on the weight. By chaining these derivatives together, we can compute how each weight contributed to the final error.</p>
+
+      <h4>Step-by-Step</h4>
+      <p><strong>1. Compute output error:</strong> ∂L/∂ŷ — how does the loss change with the prediction? For MSE: 2(ŷ - y). For cross-entropy with sigmoid: (ŷ - y).</p>
+      <p><strong>2. Propagate through activation:</strong> Multiply by the derivative of the activation function. For sigmoid: σ(z)·(1-σ(z)). For ReLU: 1 if z>0, else 0.</p>
+      <p><strong>3. Compute weight gradients:</strong> ∂L/∂W = δ · aᵀ (the error signal times the input to that layer).</p>
+      <p><strong>4. Propagate to previous layer:</strong> δ_prev = Wᵀ · δ — send the error backward through the weights.</p>
+      <p><strong>5. Repeat</strong> for each layer from output to input.</p>
+    </div>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: Backpropagation Visualized</span></div>
+      <div class="interactive-body">
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Watch gradients flow backward through the network. Red intensity shows gradient magnitude.</p>
+        <div class="controls">
+          <button class="btn primary" onclick="runBackprop()">Run Backprop</button>
+          <button class="btn" onclick="resetBackprop()">Reset</button>
+        </div>
+        <canvas id="backpropCanvas" width="700" height="300"></canvas>
+        <div class="output-log" id="backpropLog"></div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="goTo('loss')">← Loss Functions</button>
+      <button class="btn primary" onclick="goTo('optimizer')">Next: Optimizers →</button>
+    </div>
+  </div>
+
+  <!-- 07 OPTIMIZERS -->
+  <div class="section" id="optimizer">
+    <div class="subtitle">Chapter 07</div>
+    <h2>Optimizers & Learning</h2>
+    <p>Once we have gradients from backprop, we need to actually update the weights. The optimizer determines <em>how</em> we use those gradients. The simplest approach is gradient descent, but modern optimizers are much smarter.</p>
+
+    <div class="card">
+      <h4>Stochastic Gradient Descent (SGD)</h4>
+      <div class="math">w = w - lr · ∂L/∂w</div>
+      <p>Subtract the gradient (scaled by the learning rate) from each weight. Simple but can oscillate in ravines and get stuck in local minima. "Stochastic" because we compute gradients on mini-batches, not the full dataset — this adds noise that actually helps escape bad local minima.</p>
+
+      <h4>SGD with Momentum</h4>
+      <div class="math">v = β·v + ∂L/∂w     then     w = w - lr · v</div>
+      <p>Maintains a velocity vector that accumulates past gradients. This smooths out oscillations and accelerates learning in consistent gradient directions — like a ball rolling downhill with momentum.</p>
+
+      <h4>Adam (Adaptive Moment Estimation)</h4>
+      <p>Combines momentum (first moment) with RMSProp (second moment — tracking gradient magnitude per parameter). Each weight gets its own adaptive learning rate. The current default choice for most tasks. Converges faster and requires less hyperparameter tuning than SGD.</p>
+
+      <h4>Learning Rate</h4>
+      <p>The most critical hyperparameter. Too high → training diverges (loss explodes). Too low → training is extremely slow and may get stuck. Common strategy: start with a moderate rate (0.001 for Adam) and decay it over time using a scheduler.</p>
+    </div>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: Optimizer Comparison on a Loss Surface</span></div>
+      <div class="interactive-body">
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Watch different optimizers navigate toward the minimum of a 2D loss surface. The surface has a narrow valley to show how momentum helps.</p>
+        <div class="controls">
+          <button class="btn primary" onclick="runOptimizer()">Start Optimization</button>
+          <button class="btn" onclick="resetOptimizer()">Reset</button>
+          <label class="slider-label">Learning Rate: <input type="range" id="opt_lr" min="0.001" max="0.1" step="0.001" value="0.02"> <span id="opt_lrv">0.020</span></label>
+        </div>
+        <canvas id="optimizerCanvas" width="700" height="350"></canvas>
+        <div class="output-log" id="optimizerLog"></div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="goTo('backprop')">← Backpropagation</button>
+      <button class="btn primary" onclick="goTo('cnn-intro')">Next: CNN Overview →</button>
+    </div>
+  </div>
+
+  <!-- 08 CNN INTRO -->
+  <div class="section" id="cnn-intro">
+    <div class="subtitle">Chapter 08</div>
+    <h2>Convolutional Neural Networks</h2>
+    <p>CNNs are specialized neural networks designed for data with spatial structure — primarily images. Instead of connecting every input to every neuron (fully connected), CNNs use <strong>local connectivity</strong> and <strong>weight sharing</strong> through convolution operations.</p>
+
+    <div class="card">
+      <h4>Why Not Use Regular NNs for Images?</h4>
+      <p>A 224×224 RGB image has 150,528 input values. A single fully-connected hidden layer with 1000 neurons would need 150 million weights — just for one layer. This is wasteful because images have local structure: nearby pixels are related, and a pattern (like an edge) looks the same regardless of where it appears.</p>
+
+      <h4>Key CNN Ideas</h4>
+      <p><strong>Local Connectivity:</strong> Each neuron only looks at a small patch of the input (the receptive field), not the entire image.</p>
+      <p><strong>Weight Sharing:</strong> The same small set of weights (a filter/kernel) is applied across the entire image. This means the network automatically detects a feature regardless of its position (translation invariance).</p>
+      <p><strong>Hierarchy of Features:</strong> Early layers detect simple patterns (edges, colors). Middle layers combine these into textures and parts. Deep layers recognize objects and scenes.</p>
+
+      <h4>Typical CNN Architecture</h4>
+      <p>Input → [Convolution → Activation → Pooling] × N → Flatten → Fully Connected → Output</p>
+    </div>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: Feature Hierarchy</span></div>
+      <div class="interactive-body">
+        <canvas id="cnnIntroCanvas" width="700" height="280"></canvas>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="goTo('optimizer')">← Optimizers</button>
+      <button class="btn primary" onclick="goTo('convolution')">Next: Convolution Layer →</button>
+    </div>
+  </div>
+
+  <!-- 09 CONVOLUTION -->
+  <div class="section" id="convolution">
+    <div class="subtitle">Chapter 09</div>
+    <h2>The Convolution Layer</h2>
+    <p>The convolution operation slides a small filter (kernel) across the input image, computing a dot product at each position. This produces a <strong>feature map</strong> — a 2D map showing where the filter detected its pattern.</p>
+
+    <div class="math">output[i,j] = Σₘ Σₙ input[i+m, j+n] · kernel[m, n] + bias</div>
+
+    <div class="card">
+      <h4>The Kernel/Filter</h4>
+      <p>A small matrix (typically 3×3 or 5×5) of learnable weights. Different kernels detect different features. A horizontal edge kernel might look like [[1,1,1],[0,0,0],[-1,-1,-1]]. The network learns what kernels are useful through backpropagation.</p>
+
+      <h4>Stride</h4>
+      <p>How many pixels the kernel moves at each step. Stride 1 means it moves one pixel at a time (maximum resolution). Stride 2 skips every other position, halving the output dimensions.</p>
+
+      <h4>Padding</h4>
+      <p>"Same" padding adds zeros around the border so the output has the same dimensions as the input. "Valid" padding uses no padding, so the output shrinks. Same padding preserves spatial dimensions; valid padding loses border information.</p>
+
+      <h4>Multiple Filters</h4>
+      <p>Each conv layer has multiple filters (e.g., 32 or 64), each producing its own feature map. These are stacked as channels in the output — so a layer with 32 filters turns a single-channel input into a 32-channel output.</p>
+    </div>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: Convolution Operation</span></div>
+      <div class="interactive-body">
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Choose a kernel type and watch it slide across the input. The output feature map builds up as the kernel moves.</p>
+        <div class="controls">
+          <button class="btn primary" onclick="setKernel('edge_h')">Horizontal Edge</button>
+          <button class="btn" onclick="setKernel('edge_v')">Vertical Edge</button>
+          <button class="btn" onclick="setKernel('sharpen')">Sharpen</button>
+          <button class="btn" onclick="setKernel('blur')">Blur</button>
+        </div>
+        <div class="controls">
+          <button class="btn primary" onclick="runConvolution()">▶ Animate Convolution</button>
+          <button class="btn" onclick="resetConvolution()">Reset</button>
+        </div>
+        <canvas id="convCanvas" width="700" height="320"></canvas>
+        <div class="output-log" id="convLog"></div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="goTo('cnn-intro')">← CNN Overview</button>
+      <button class="btn primary" onclick="goTo('pooling')">Next: Pooling →</button>
+    </div>
+  </div>
+
+  <!-- 10 POOLING -->
+  <div class="section" id="pooling">
+    <div class="subtitle">Chapter 10</div>
+    <h2>Pooling & Stride</h2>
+    <p>Pooling layers reduce the spatial dimensions of feature maps, decreasing computation and making the network more robust to small translations in the input. The most common type is max pooling.</p>
+
+    <div class="card">
+      <h4>Max Pooling</h4>
+      <p>Divides the feature map into non-overlapping patches (e.g., 2×2) and takes the maximum value from each patch. This halves the width and height. The intuition: if a feature was detected anywhere in the patch, we keep it — the exact position doesn't matter.</p>
+
+      <h4>Average Pooling</h4>
+      <p>Same as max pooling but takes the average instead. Provides a smoother downsampling. Sometimes used in the final layer (Global Average Pooling) to replace the fully connected layers.</p>
+
+      <h4>Why Pooling Helps</h4>
+      <p><strong>Dimensionality reduction:</strong> Fewer parameters in subsequent layers = less computation and less overfitting.</p>
+      <p><strong>Translation invariance:</strong> Small shifts in the input don't change the pooled output.</p>
+      <p><strong>Larger receptive field:</strong> After pooling, each neuron in the next conv layer effectively "sees" a larger portion of the original image.</p>
+    </div>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: Max Pooling vs Average Pooling</span></div>
+      <div class="interactive-body">
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">See how pooling reduces a feature map. Each colored 2×2 block becomes a single value.</p>
+        <div class="controls">
+          <button class="btn primary" onclick="runPooling('max')">Max Pooling</button>
+          <button class="btn" onclick="runPooling('avg')">Average Pooling</button>
+          <button class="btn" onclick="resetPooling()">New Random Data</button>
+        </div>
+        <canvas id="poolCanvas" width="700" height="320"></canvas>
+        <div class="output-log" id="poolLog"></div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="goTo('convolution')">← Convolution</button>
+      <button class="btn primary" onclick="goTo('cnn-full')">Next: Full CNN Pipeline →</button>
+    </div>
+  </div>
+
+  <!-- 11 FULL CNN -->
+  <div class="section" id="cnn-full">
+    <div class="subtitle">Chapter 11</div>
+    <h2>Full CNN Pipeline</h2>
+    <p>Let's put it all together. A complete CNN takes a raw image, passes it through alternating convolution and pooling layers to extract hierarchical features, flattens the result, and feeds it through fully connected layers for classification.</p>
+
+    <div class="card">
+      <h4>Example Architecture (LeNet-style)</h4>
+      <p><strong>Input:</strong> 28×28 grayscale image (e.g., a handwritten digit)</p>
+      <p><strong>Conv1:</strong> 6 filters of 5×5 → 6 feature maps of 24×24. Detects simple edges and strokes.</p>
+      <p><strong>Pool1:</strong> 2×2 max pooling → 6 maps of 12×12. Reduces spatial dimensions.</p>
+      <p><strong>Conv2:</strong> 16 filters of 5×5 → 16 feature maps of 8×8. Detects combinations of edges — curves, corners, junctions.</p>
+      <p><strong>Pool2:</strong> 2×2 max pooling → 16 maps of 4×4.</p>
+      <p><strong>Flatten:</strong> 16 × 4 × 4 = 256 values in a 1D vector.</p>
+      <p><strong>FC1:</strong> 256 → 120 neurons with ReLU. Learns high-level digit features.</p>
+      <p><strong>FC2:</strong> 120 → 84 neurons with ReLU.</p>
+      <p><strong>Output:</strong> 84 → 10 neurons with softmax. Probability for each digit 0-9.</p>
+    </div>
+
+    <div class="interactive-area">
+      <div class="interactive-header"><span>▸ Interactive: Draw a digit — watch the CNN process it</span></div>
+      <div class="interactive-body">
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Draw a digit on the canvas. The simulated CNN will show you each processing stage.</p>
+        <div class="controls">
+          <canvas id="drawCanvas" class="draw-canvas" width="140" height="140"></canvas>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn primary" onclick="processCNN()">Process through CNN</button>
+            <button class="btn" onclick="clearDrawCanvas()">Clear Canvas</button>
+          </div>
+        </div>
+        <canvas id="cnnPipeCanvas" width="700" height="300"></canvas>
+        <div class="output-log" id="cnnLog"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:32px;">
+      <h4>Congratulations!</h4>
+      <p>You've completed the full tutorial — from a single neuron to a convolutional neural network. You now understand the core mechanics: how data flows forward through weighted connections and activations, how loss measures error, how backpropagation computes gradients using the chain rule, how optimizers update weights, and how CNNs exploit spatial structure with convolutions and pooling.</p>
+      <p>Next steps: try implementing a simple NN from scratch in NumPy, then build a CNN with PyTorch or TensorFlow on the MNIST dataset. The concepts you learned here map directly to the code.</p>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="goTo('pooling')">← Pooling</button>
+      <button class="btn primary" onclick="goTo('intro')">↻ Start Over</button>
+    </div>
+  </div>
+</main>
+
+<script>
+// ===== NAVIGATION =====
+const navItems = document.querySelectorAll('.nav-item');
+const sections = document.querySelectorAll('.section');
+
+function goTo(id) {
+  sections.forEach(s => s.classList.remove('active'));
+  navItems.forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelector(`[data-section="${id}"]`).classList.add('active');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+  // trigger init
+  if (initFns[id]) initFns[id]();
+}
+
+navItems.forEach(item => {
+  item.addEventListener('click', () => goTo(item.dataset.section));
+});
+
+const initFns = {};
+
+// ===== HELPERS =====
+function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+function relu(x) { return Math.max(0, x); }
+function leakyRelu(x) { return x > 0 ? x : 0.01 * x; }
+function tanhFn(x) { return Math.tanh(x); }
+
+function drawRoundedRect(ctx, x, y, w, h, r, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+}
+
+// ===== 00 INTRO CANVAS =====
+initFns['intro'] = function() {
+  const c = document.getElementById('introCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const steps = ['INPUT', 'FORWARD\nPASS', 'PREDICTION', 'COMPUTE\nLOSS', 'BACKPROP', 'UPDATE\nWEIGHTS'];
+  const colors = ['#6ee7b7', '#38bdf8', '#f472b6', '#fbbf24', '#ef4444', '#a78bfa'];
+  const w = 95, h = 55, gap = 20;
+  const totalW = steps.length * w + (steps.length - 1) * gap;
+  const startX = (c.width - totalW) / 2;
+  const y = (c.height - h) / 2;
+
+  steps.forEach((s, i) => {
+    const x = startX + i * (w + gap);
+    drawRoundedRect(ctx, x, y, w, h, 8, colors[i] + '22', colors[i]);
+    ctx.fillStyle = colors[i];
+    ctx.font = '600 10px Outfit';
+    ctx.textAlign = 'center';
+    const lines = s.split('\n');
+    lines.forEach((line, li) => {
+      ctx.fillText(line, x + w/2, y + h/2 + (li - (lines.length-1)/2) * 14 + 4);
+    });
+
+    if (i < steps.length - 1) {
+      const ax = x + w + 3, ay = y + h/2;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay); ctx.lineTo(ax + gap - 6, ay);
+      ctx.strokeStyle = '#444'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(ax + gap - 10, ay - 4); ctx.lineTo(ax + gap - 4, ay); ctx.lineTo(ax + gap - 10, ay + 4);
+      ctx.strokeStyle = '#444'; ctx.stroke();
+    }
+  });
+
+  // Loop arrow
+  ctx.beginPath();
+  const lastX = startX + 5*(w+gap) + w;
+  ctx.moveTo(lastX, y + h);
+  ctx.quadraticCurveTo(lastX + 30, y + h + 60, c.width/2, y + h + 50);
+  ctx.quadraticCurveTo(startX - 30, y + h + 40, startX, y + h);
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.setLineDash([4,4]); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#888'; ctx.font = '11px Outfit'; ctx.textAlign = 'center';
+  ctx.fillText('repeat until loss is minimized', c.width/2, y + h + 60);
+};
+initFns['intro']();
+
+// ===== 01 NEURON INTERACTIVE =====
+function updateNeuron() {
+  const x1 = parseFloat(document.getElementById('n_x1').value);
+  const w1 = parseFloat(document.getElementById('n_w1').value);
+  const x2 = parseFloat(document.getElementById('n_x2').value);
+  const w2 = parseFloat(document.getElementById('n_w2').value);
+  const b = parseFloat(document.getElementById('n_b').value);
+
+  document.getElementById('n_x1v').textContent = x1.toFixed(1);
+  document.getElementById('n_w1v').textContent = w1.toFixed(1);
+  document.getElementById('n_x2v').textContent = x2.toFixed(1);
+  document.getElementById('n_w2v').textContent = w2.toFixed(1);
+  document.getElementById('n_bv').textContent = b.toFixed(1);
+
+  const z = x1 * w1 + x2 * w2 + b;
+  const a = sigmoid(z);
+
+  const c = document.getElementById('neuronCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const cy = c.height / 2;
+  // Inputs
+  const inputs = [{label: `x₁=${x1.toFixed(1)}`, y: cy - 50, w: w1, val: x1},
+                  {label: `x₂=${x2.toFixed(1)}`, y: cy + 50, w: w2, val: x2}];
+  inputs.forEach(inp => {
+    ctx.beginPath(); ctx.arc(100, inp.y, 22, 0, Math.PI*2);
+    ctx.fillStyle = '#1a1a26'; ctx.fill();
+    ctx.strokeStyle = '#6ee7b7'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#6ee7b7'; ctx.font = '600 12px JetBrains Mono'; ctx.textAlign = 'center';
+    ctx.fillText(inp.label, 100, inp.y + 4);
+
+    // Connection
+    const alpha = Math.min(1, Math.abs(inp.w));
+    ctx.beginPath(); ctx.moveTo(122, inp.y); ctx.lineTo(308, cy);
+    ctx.strokeStyle = `rgba(110,231,183,${alpha * 0.6})`; ctx.lineWidth = Math.abs(inp.w) * 3 + 0.5; ctx.stroke();
+
+    ctx.fillStyle = '#fbbf24'; ctx.font = '11px JetBrains Mono';
+    ctx.fillText(`w=${inp.w.toFixed(1)}`, 210, inp.y + (cy - inp.y) * 0.5 - 6);
+  });
+
+  // Neuron body
+  ctx.beginPath(); ctx.arc(340, cy, 35, 0, Math.PI*2);
+  const grad = ctx.createRadialGradient(340, cy, 0, 340, cy, 35);
+  grad.addColorStop(0, `rgba(110,231,183,${a * 0.4})`);
+  grad.addColorStop(1, 'rgba(110,231,183,0.05)');
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.strokeStyle = '#6ee7b7'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = '600 11px JetBrains Mono'; ctx.textAlign = 'center';
+  ctx.fillText('Σ + b', 340, cy - 6);
+  ctx.fillStyle = '#fbbf24'; ctx.fillText(`z=${z.toFixed(2)}`, 340, cy + 12);
+
+  // Activation
+  ctx.beginPath(); ctx.moveTo(375, cy); ctx.lineTo(460, cy);
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.stroke();
+  drawRoundedRect(ctx, 460, cy - 20, 70, 40, 6, '#38bdf822', '#38bdf8');
+  ctx.fillStyle = '#38bdf8'; ctx.font = '600 11px Outfit'; ctx.fillText('sigmoid', 495, cy + 4);
+
+  // Output
+  ctx.beginPath(); ctx.moveTo(530, cy); ctx.lineTo(600, cy);
+  ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(630, cy, 22, 0, Math.PI*2);
+  ctx.fillStyle = `rgba(244,114,182,${a * 0.3})`; ctx.fill();
+  ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#f472b6'; ctx.font = '600 12px JetBrains Mono';
+  ctx.fillText(a.toFixed(3), 630, cy + 4);
+
+  document.getElementById('neuronLog').innerHTML =
+    `<span class="info">Weighted sum:</span> z = (${x1.toFixed(1)} × ${w1.toFixed(1)}) + (${x2.toFixed(1)} × ${w2.toFixed(1)}) + ${b.toFixed(1)} = <span class="val">${z.toFixed(3)}</span>\n` +
+    `<span class="info">Activation:</span> σ(${z.toFixed(3)}) = 1/(1+e^${(-z).toFixed(3)}) = <span class="highlight">${a.toFixed(4)}</span>`;
+}
+
+['n_x1','n_w1','n_x2','n_w2','n_b'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateNeuron);
+});
+initFns['neuron'] = updateNeuron;
+
+// ===== 02 ACTIVATIONS =====
+let currentActivation = 'sigmoid';
+function setActivation(type) {
+  currentActivation = type;
+  document.querySelectorAll('#activations .btn').forEach(b => b.classList.remove('primary'));
+  event.target.classList.add('primary');
+  drawActivation();
+}
+
+function drawActivation() {
+  const c = document.getElementById('actCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const ox = 350, oy = 150, scaleX = 50, scaleY = 100;
+
+  // Grid
+  ctx.strokeStyle = '#1a1a26'; ctx.lineWidth = 1;
+  for (let i = -6; i <= 6; i++) {
+    ctx.beginPath(); ctx.moveTo(ox + i * scaleX, 10); ctx.lineTo(ox + i * scaleX, c.height - 10); ctx.stroke();
+  }
+  for (let i = -2; i <= 2; i++) {
+    ctx.beginPath(); ctx.moveTo(10, oy + i * scaleY); ctx.lineTo(c.width - 10, oy + i * scaleY); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(10, oy); ctx.lineTo(c.width - 10, oy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox, 10); ctx.lineTo(ox, c.height - 10); ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = '#666'; ctx.font = '11px JetBrains Mono'; ctx.textAlign = 'center';
+  for (let i = -6; i <= 6; i++) { if (i !== 0) ctx.fillText(i, ox + i * scaleX, oy + 18); }
+  ctx.textAlign = 'right';
+  ctx.fillText('1', ox - 8, oy - scaleY + 4);
+  ctx.fillText('-1', ox - 8, oy + scaleY + 4);
+
+  // Function
+  const fns = {
+    sigmoid: { fn: sigmoid, color: '#6ee7b7', name: 'σ(z) = 1/(1+e⁻ᶻ)', range: 'Output: (0, 1)' },
+    tanh: { fn: tanhFn, color: '#38bdf8', name: 'tanh(z)', range: 'Output: (-1, 1)' },
+    relu: { fn: relu, color: '#f472b6', name: 'ReLU(z) = max(0, z)', range: 'Output: [0, ∞)' },
+    leaky: { fn: leakyRelu, color: '#fbbf24', name: 'LeakyReLU(z) = max(0.01z, z)', range: 'Output: (-∞, ∞)' }
+  };
+
+  const f = fns[currentActivation];
+  ctx.beginPath();
+  ctx.strokeStyle = f.color; ctx.lineWidth = 2.5;
+  for (let px = 10; px < c.width - 10; px++) {
+    const z = (px - ox) / scaleX;
+    let y = f.fn(z);
+    const py = oy - y * scaleY;
+    if (py > 5 && py < c.height - 5) {
+      if (px === 10) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+  }
+  ctx.stroke();
+
+  // Also draw derivative
+  ctx.beginPath();
+  ctx.strokeStyle = f.color + '55'; ctx.lineWidth = 1.5; ctx.setLineDash([4,4]);
+  for (let px = 10; px < c.width - 10; px++) {
+    const z = (px - ox) / scaleX;
+    let dy;
+    if (currentActivation === 'sigmoid') { const s = sigmoid(z); dy = s * (1-s); }
+    else if (currentActivation === 'tanh') { const t = tanhFn(z); dy = 1 - t*t; }
+    else if (currentActivation === 'relu') { dy = z > 0 ? 1 : 0; }
+    else { dy = z > 0 ? 1 : 0.01; }
+    const py = oy - dy * scaleY;
+    if (py > 5 && py < c.height - 5) {
+      if (px === 10) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Legend
+  ctx.fillStyle = f.color; ctx.font = '600 14px Outfit'; ctx.textAlign = 'left';
+  ctx.fillText(f.name, 20, 25);
+  ctx.fillStyle = '#888'; ctx.font = '12px Outfit';
+  ctx.fillText(f.range, 20, 45);
+  ctx.fillStyle = f.color + '88'; ctx.fillText('— dashed = derivative (gradient)', 20, 65);
+
+  document.getElementById('actLog').innerHTML =
+    `<span class="highlight">${f.name}</span> | ${f.range}\n` +
+    `<span class="info">Derivative at z=0:</span> <span class="val">${currentActivation === 'sigmoid' ? '0.25' : currentActivation === 'tanh' ? '1.0' : currentActivation === 'relu' ? 'undefined (0 or 1)' : 'undefined (0.01 or 1)'}</span>`;
+}
+initFns['activations'] = drawActivation;
+
+// ===== 03 LAYERS =====
+function drawLayers() {
+  const h1 = parseInt(document.getElementById('l_h1').value);
+  const h2 = parseInt(document.getElementById('l_h2').value);
+  const h3 = parseInt(document.getElementById('l_h3').value);
+  document.getElementById('l_h1v').textContent = h1;
+  document.getElementById('l_h2v').textContent = h2;
+  document.getElementById('l_h3v').textContent = h3 || 'off';
+
+  const c = document.getElementById('layerCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const layers = [3, h1, h2];
+  if (h3 > 0) layers.push(h3);
+  layers.push(2);
+
+  const labels = ['Input', 'Hidden 1', 'Hidden 2'];
+  if (h3 > 0) labels.push('Hidden 3');
+  labels.push('Output');
+
+  const colors = ['#6ee7b7', '#38bdf8', '#a78bfa', '#fbbf24', '#f472b6'];
+  const gap = c.width / (layers.length + 1);
+
+  const positions = layers.map((n, li) => {
+    const x = gap * (li + 1);
+    const arr = [];
+    for (let i = 0; i < n; i++) {
+      const y = c.height / 2 + (i - (n - 1) / 2) * 36;
+      arr.push({x, y});
+    }
+    return arr;
+  });
+
+  // Connections
+  for (let li = 0; li < positions.length - 1; li++) {
+    positions[li].forEach(from => {
+      positions[li + 1].forEach(to => {
+        ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y);
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1; ctx.stroke();
+      });
+    });
+  }
+
+  // Neurons
+  positions.forEach((layer, li) => {
+    const col = colors[li % colors.length];
+    layer.forEach(p => {
+      ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
+      ctx.fillStyle = col + '33'; ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
+    });
+    ctx.fillStyle = col; ctx.font = '600 11px Outfit'; ctx.textAlign = 'center';
+    ctx.fillText(labels[li], layer[0].x, 22);
+    ctx.fillStyle = '#666'; ctx.font = '10px JetBrains Mono';
+    ctx.fillText(`(${layers[li]})`, layer[0].x, 36);
+  });
+}
+
+['l_h1', 'l_h2', 'l_h3'].forEach(id => {
+  document.getElementById(id).addEventListener('input', drawLayers);
+});
+initFns['layers'] = drawLayers;
+
+// ===== 04 FORWARD PASS =====
+let fpStep = 0, fpInterval = null;
+function resetForwardPass() {
+  fpStep = 0; clearInterval(fpInterval);
+  document.getElementById('forwardLog').innerHTML = '<span class="info">Click "Run Forward Pass" to begin.</span>';
+  drawForwardNet(0);
+}
+
+function drawForwardNet(highlightLayer) {
+  const c = document.getElementById('forwardCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const arch = [2, 3, 2, 1];
+  const labels = ['Input', 'Hidden 1', 'Hidden 2', 'Output'];
+  const gap = c.width / (arch.length + 1);
+
+  const positions = arch.map((n, li) => {
+    const x = gap * (li + 1);
+    const arr = [];
+    for (let i = 0; i < n; i++) arr.push({x, y: c.height / 2 + (i - (n-1)/2) * 50});
+    return arr;
+  });
+
+  // Connections
+  for (let li = 0; li < positions.length - 1; li++) {
+    const active = li < highlightLayer;
+    positions[li].forEach(from => {
+      positions[li+1].forEach(to => {
+        ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y);
+        ctx.strokeStyle = active ? 'rgba(110,231,183,0.3)' : 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = active ? 2 : 1; ctx.stroke();
+      });
+    });
+  }
+
+  // Neurons
+  positions.forEach((layer, li) => {
+    const active = li <= highlightLayer;
+    layer.forEach(p => {
+      ctx.beginPath(); ctx.arc(p.x, p.y, 16, 0, Math.PI * 2);
+      ctx.fillStyle = active ? 'rgba(110,231,183,0.25)' : '#1a1a26';
+      ctx.fill();
+      ctx.strokeStyle = active ? '#6ee7b7' : '#333'; ctx.lineWidth = 2; ctx.stroke();
+      if (active && li === highlightLayer) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 20, 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(110,231,183,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+      }
+    });
+    ctx.fillStyle = active ? '#6ee7b7' : '#555'; ctx.font = '600 11px Outfit'; ctx.textAlign = 'center';
+    ctx.fillText(labels[li], layer[0].x, 22);
+  });
+
+  if (highlightLayer > 0 && highlightLayer <= arch.length) {
+    ctx.fillStyle = '#fbbf24'; ctx.font = '12px JetBrains Mono'; ctx.textAlign = 'center';
+    ctx.fillText('▶ data flowing', gap * (highlightLayer) + gap/2, c.height - 15);
+  }
+}
+
+function runForwardPass() {
+  resetForwardPass();
+  const log = document.getElementById('forwardLog');
+  const msgs = [
+    '<span class="info">→ Input layer:</span> x = [0.5, -0.3] fed into the network',
+    '<span class="info">→ Hidden 1:</span> z = W₁·x + b₁ = [0.42, -0.18, 0.71] → a = ReLU(z) = <span class="val">[0.42, 0.00, 0.71]</span>',
+    '<span class="info">→ Hidden 2:</span> z = W₂·a₁ + b₂ = [0.33, -0.12] → a = ReLU(z) = <span class="val">[0.33, 0.00]</span>',
+    '<span class="info">→ Output:</span> z = W₃·a₂ + b₃ = [0.27] → ŷ = σ(0.27) = <span class="highlight">0.567</span>\n<span class="info">Prediction:</span> 56.7% probability for class 1'
+  ];
+
+  let step = 0;
+  fpInterval = setInterval(() => {
+    drawForwardNet(step + 1);
+    log.innerHTML += msgs[step] + '\n';
+    step++;
+    if (step >= msgs.length) clearInterval(fpInterval);
+  }, 800);
+}
+initFns['forward'] = function() { drawForwardNet(0); document.getElementById('forwardLog').innerHTML = '<span class="info">Click "Run Forward Pass" to begin.</span>'; };
+
+// ===== 05 LOSS =====
+function updateLoss() {
+  const pred = parseFloat(document.getElementById('loss_pred').value);
+  const type = document.getElementById('loss_type').value;
+  document.getElementById('loss_predv').textContent = pred.toFixed(2);
+
+  const c = document.getElementById('lossCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const left = 60, right = c.width - 30, top = 20, bottom = c.height - 40;
+  const w = right - left, h = bottom - top;
+
+  // Draw curve
+  ctx.beginPath();
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+  let maxLoss = 0;
+  const points = [];
+  for (let px = 0; px <= 100; px++) {
+    const p = 0.01 + px * 0.0098;
+    let loss;
+    if (type === 'mse') loss = (1 - p) ** 2;
+    else loss = -(Math.log(p));
+    points.push({p, loss});
+    if (loss > maxLoss && loss < 6) maxLoss = loss;
+  }
+  maxLoss = Math.min(maxLoss, 5);
+
+  points.forEach((pt, i) => {
+    const x = left + (pt.p - 0.01) / 0.98 * w;
+    const y = bottom - Math.min(pt.loss, maxLoss) / maxLoss * h;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Axes
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(left, top); ctx.lineTo(left, bottom); ctx.lineTo(right, bottom); ctx.stroke();
+  ctx.fillStyle = '#666'; ctx.font = '11px Outfit'; ctx.textAlign = 'center';
+  ctx.fillText('Prediction (ŷ)', (left + right) / 2, c.height - 5);
+  ctx.save(); ctx.translate(15, (top + bottom) / 2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('Loss', 0, 0); ctx.restore();
+
+  // Current point
+  let curLoss;
+  if (type === 'mse') curLoss = (1 - pred) ** 2;
+  else curLoss = -(Math.log(pred));
+  const cx = left + (pred - 0.01) / 0.98 * w;
+  const cy = bottom - Math.min(curLoss, maxLoss) / maxLoss * h;
+
+  ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI*2);
+  ctx.fillStyle = '#f472b6'; ctx.fill();
+  ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 1;
+  ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, bottom); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(left, cy); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#f472b6'; ctx.font = '600 12px JetBrains Mono'; ctx.textAlign = 'left';
+  ctx.fillText(`Loss = ${curLoss.toFixed(3)}`, cx + 12, cy - 8);
+
+  document.getElementById('lossLog').innerHTML =
+    `<span class="info">Target:</span> y = 1.0 | <span class="info">Prediction:</span> ŷ = <span class="val">${pred.toFixed(2)}</span>\n` +
+    `<span class="info">${type === 'mse' ? 'MSE' : 'BCE'} Loss:</span> <span class="highlight">${curLoss.toFixed(4)}</span>` +
+    (pred > 0.9 ? '  ← <span class="highlight">Low loss — good prediction!</span>' : pred < 0.2 ? '  ← <span class="err">High loss — very wrong!</span>' : '');
+}
+
+document.getElementById('loss_pred').addEventListener('input', updateLoss);
+document.getElementById('loss_type').addEventListener('change', updateLoss);
+initFns['loss'] = updateLoss;
+
+// ===== 06 BACKPROP =====
+let bpStep = 0, bpInterval = null;
+
+function resetBackprop() {
+  bpStep = 0; clearInterval(bpInterval);
+  document.getElementById('backpropLog').innerHTML = '<span class="info">Click "Run Backprop" to see gradients flow backward.</span>';
+  drawBackpropNet(-1);
+}
+
+function drawBackpropNet(activeLayer) {
+  const c = document.getElementById('backpropCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const arch = [2, 3, 2, 1];
+  const labels = ['Input', 'Hidden 1', 'Hidden 2', 'Output'];
+  const gap = c.width / (arch.length + 1);
+
+  const positions = arch.map((n, li) => {
+    const x = gap * (li + 1);
+    return Array.from({length: n}, (_, i) => ({x, y: c.height/2 + (i - (n-1)/2) * 55}));
+  });
+
+  // Connections with gradient flow
+  for (let li = 0; li < positions.length - 1; li++) {
+    const gradActive = activeLayer >= 0 && li >= activeLayer;
+    positions[li].forEach(from => {
+      positions[li+1].forEach(to => {
+        ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y);
+        ctx.strokeStyle = gradActive ? `rgba(239,68,68,${0.15 + (arch.length - li) * 0.12})` : 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = gradActive ? 2.5 : 1; ctx.stroke();
+      });
+    });
+  }
+
+  // Neurons
+  positions.forEach((layer, li) => {
+    const gradActive = activeLayer >= 0 && li >= activeLayer;
+    layer.forEach(p => {
+      ctx.beginPath(); ctx.arc(p.x, p.y, 16, 0, Math.PI*2);
+      ctx.fillStyle = gradActive ? `rgba(239,68,68,${0.1 + (arch.length - li) * 0.08})` : '#1a1a26';
+      ctx.fill();
+      ctx.strokeStyle = gradActive ? '#ef4444' : '#333'; ctx.lineWidth = 2; ctx.stroke();
+    });
+    ctx.fillStyle = gradActive ? '#ef4444' : '#555'; ctx.font = '600 11px Outfit'; ctx.textAlign = 'center';
+    ctx.fillText(labels[li], layer[0].x, 18);
+  });
+
+  if (activeLayer >= 0) {
+    ctx.fillStyle = '#ef4444'; ctx.font = '12px JetBrains Mono'; ctx.textAlign = 'center';
+    ctx.fillText('◀ gradients flowing', gap * (activeLayer + 1) + gap/2, c.height - 12);
+  }
+}
+
+function runBackprop() {
+  resetBackprop();
+  const log = document.getElementById('backpropLog');
+  const msgs = [
+    '<span class="err">← Output:</span> ∂L/∂ŷ = ŷ - y = 0.567 - 1.0 = <span class="val">-0.433</span> (error signal)',
+    '<span class="err">← Hidden 2:</span> δ₂ = ∂L/∂z₂ = (-0.433) · σ\'(z) · W₃ᵀ → gradients: <span class="val">[−0.14, 0.00]</span> (ReLU kills negative z)',
+    '<span class="err">← Hidden 1:</span> δ₁ = W₂ᵀ · δ₂ ⊙ ReLU\'(z₁) → gradients: <span class="val">[−0.06, 0.00, −0.09]</span>',
+    '<span class="info">Weight updates computed:</span> ∂L/∂W = δ · aᵀ for each layer\n<span class="highlight">All gradients ready — optimizer can now update weights!</span>'
+  ];
+
+  let step = 0;
+  bpInterval = setInterval(() => {
+    drawBackpropNet(3 - step);
+    log.innerHTML += msgs[step] + '\n';
+    step++;
+    if (step >= msgs.length) clearInterval(bpInterval);
+  }, 1000);
+}
+initFns['backprop'] = function() { drawBackpropNet(-1); document.getElementById('backpropLog').innerHTML = '<span class="info">Click "Run Backprop" to see gradients flow backward.</span>'; };
+
+// ===== 07 OPTIMIZER =====
+let optAnim = null;
+function resetOptimizer() {
+  cancelAnimationFrame(optAnim);
+  document.getElementById('optimizerLog').innerHTML = '<span class="info">Click "Start Optimization" to compare SGD, Momentum, and Adam.</span>';
+  drawOptimizerSurface([]);
+}
+
+function lossSurface(x, y) {
+  return 0.5 * (x * x * 0.1 + y * y * 3) + 0.3 * Math.sin(x * 2) * Math.cos(y * 2);
+}
+
+function lossGrad(x, y) {
+  return [0.1 * x + 0.6 * Math.cos(x * 2) * Math.cos(y * 2),
+          3 * y - 0.6 * Math.sin(x * 2) * Math.sin(y * 2)];
+}
+
+function drawOptimizerSurface(paths) {
+  const c = document.getElementById('optimizerCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const left = 50, top = 30, w = c.width - 100, h = c.height - 60;
+  const xRange = [-4, 4], yRange = [-2, 2];
+
+  // Contour plot
+  const res = 4;
+  for (let px = 0; px < w; px += res) {
+    for (let py = 0; py < h; py += res) {
+      const x = xRange[0] + (px / w) * (xRange[1] - xRange[0]);
+      const y = yRange[0] + (py / h) * (yRange[1] - yRange[0]);
+      const l = lossSurface(x, y);
+      const intensity = Math.min(1, l / 6);
+      const r = Math.floor(10 + intensity * 30);
+      const g = Math.floor(10 + intensity * 20);
+      const b = Math.floor(20 + intensity * 50);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(left + px, top + py, res, res);
+    }
+  }
+
+  // Paths
+  const colors = ['#6ee7b7', '#38bdf8', '#f472b6'];
+  const names = ['SGD', 'Momentum', 'Adam'];
+  paths.forEach((path, pi) => {
+    if (path.length < 2) return;
+    ctx.beginPath();
+    ctx.strokeStyle = colors[pi]; ctx.lineWidth = 2;
+    path.forEach((pt, i) => {
+      const px = left + ((pt[0] - xRange[0]) / (xRange[1] - xRange[0])) * w;
+      const py = top + ((pt[1] - yRange[0]) / (yRange[1] - yRange[0])) * h;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+
+    // Current position
+    const last = path[path.length - 1];
+    const lx = left + ((last[0] - xRange[0]) / (xRange[1] - xRange[0])) * w;
+    const ly = top + ((last[1] - yRange[0]) / (yRange[1] - yRange[0])) * h;
+    ctx.beginPath(); ctx.arc(lx, ly, 5, 0, Math.PI * 2);
+    ctx.fillStyle = colors[pi]; ctx.fill();
+  });
+
+  // Legend
+  names.forEach((name, i) => {
+    ctx.fillStyle = colors[i]; ctx.font = '600 12px Outfit'; ctx.textAlign = 'left';
+    ctx.fillRect(c.width - 130, 40 + i * 22, 10, 10);
+    ctx.fillText(name, c.width - 114, 49 + i * 22);
+  });
+
+  // Min marker
+  const mx = left + ((0 - xRange[0]) / (xRange[1] - xRange[0])) * w;
+  const my = top + ((0 - yRange[0]) / (yRange[1] - yRange[0])) * h;
+  ctx.beginPath(); ctx.arc(mx, my, 4, 0, Math.PI*2);
+  ctx.fillStyle = '#fbbf24'; ctx.fill();
+  ctx.fillStyle = '#fbbf24'; ctx.font = '10px Outfit'; ctx.textAlign = 'left';
+  ctx.fillText('minimum', mx + 8, my + 4);
+}
+
+function runOptimizer() {
+  cancelAnimationFrame(optAnim);
+  const lr = parseFloat(document.getElementById('opt_lr').value);
+  document.getElementById('opt_lrv').textContent = lr.toFixed(3);
+
+  const start = [3.5, 1.5];
+  // SGD
+  let sgdPos = [...start], sgdPath = [[...start]];
+  // Momentum
+  let momPos = [...start], momPath = [[...start]], momV = [0, 0];
+  const beta = 0.9;
+  // Adam
+  let adamPos = [...start], adamPath = [[...start]], adamM = [0, 0], adamV2 = [0, 0];
+  const b1 = 0.9, b2 = 0.999, eps = 1e-8;
+  let t = 0;
+
+  const log = document.getElementById('optimizerLog');
+  log.innerHTML = '';
+
+  function step() {
+    t++;
+    const gSgd = lossGrad(sgdPos[0], sgdPos[1]);
+    sgdPos[0] -= lr * gSgd[0]; sgdPos[1] -= lr * gSgd[1];
+    sgdPath.push([...sgdPos]);
+
+    const gMom = lossGrad(momPos[0], momPos[1]);
+    momV[0] = beta * momV[0] + gMom[0]; momV[1] = beta * momV[1] + gMom[1];
+    momPos[0] -= lr * momV[0]; momPos[1] -= lr * momV[1];
+    momPath.push([...momPos]);
+
+    const gAdam = lossGrad(adamPos[0], adamPos[1]);
+    adamM[0] = b1 * adamM[0] + (1-b1) * gAdam[0]; adamM[1] = b1 * adamM[1] + (1-b1) * gAdam[1];
+    adamV2[0] = b2 * adamV2[0] + (1-b2) * gAdam[0]**2; adamV2[1] = b2 * adamV2[1] + (1-b2) * gAdam[1]**2;
+    const mh = [adamM[0]/(1-b1**t), adamM[1]/(1-b1**t)];
+    const vh = [adamV2[0]/(1-b2**t), adamV2[1]/(1-b2**t)];
+    adamPos[0] -= lr * mh[0] / (Math.sqrt(vh[0]) + eps);
+    adamPos[1] -= lr * mh[1] / (Math.sqrt(vh[1]) + eps);
+    adamPath.push([...adamPos]);
+
+    drawOptimizerSurface([sgdPath, momPath, adamPath]);
+
+    if (t % 10 === 0) {
+      log.innerHTML = `<span class="info">Step ${t}:</span>\n` +
+        `  <span class="highlight">SGD</span>      loss=${lossSurface(sgdPos[0], sgdPos[1]).toFixed(4)}\n` +
+        `  <span class="info">Momentum</span> loss=${lossSurface(momPos[0], momPos[1]).toFixed(4)}\n` +
+        `  <span class="val">Adam</span>     loss=${lossSurface(adamPos[0], adamPos[1]).toFixed(4)}`;
+    }
+
+    if (t < 200) optAnim = requestAnimationFrame(step);
+  }
+  step();
+}
+
+document.getElementById('opt_lr').addEventListener('input', function() {
+  document.getElementById('opt_lrv').textContent = parseFloat(this.value).toFixed(3);
+});
+initFns['optimizer'] = resetOptimizer;
+
+// ===== 08 CNN INTRO =====
+initFns['cnn-intro'] = function() {
+  const c = document.getElementById('cnnIntroCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const stages = [
+    {label: 'Input\nImage', desc: 'Raw pixels', color: '#6ee7b7', w: 70, h: 70},
+    {label: 'Conv 1', desc: 'Edges, gradients', color: '#38bdf8', w: 60, h: 60},
+    {label: 'Pool 1', desc: 'Downsample', color: '#a78bfa', w: 45, h: 45},
+    {label: 'Conv 2', desc: 'Textures, parts', color: '#38bdf8', w: 40, h: 40},
+    {label: 'Pool 2', desc: 'Downsample', color: '#a78bfa', w: 30, h: 30},
+    {label: 'Flatten', desc: '→ 1D vector', color: '#fbbf24', w: 10, h: 60},
+    {label: 'FC', desc: 'Classification', color: '#f472b6', w: 30, h: 30},
+    {label: 'Output', desc: 'Probabilities', color: '#ef4444', w: 30, h: 30},
+  ];
+
+  const totalGap = c.width - 60;
+  const gap = totalGap / (stages.length);
+
+  stages.forEach((s, i) => {
+    const x = 40 + gap * i;
+    const y = c.height / 2;
+
+    // Multiple stacked rectangles for conv/pool
+    if (s.label.includes('Conv') || s.label.includes('Pool')) {
+      for (let j = 2; j >= 0; j--) {
+        drawRoundedRect(ctx, x - s.w/2 + j*4, y - s.h/2 - j*4, s.w, s.h, 4, s.color + '15', s.color + '60');
+      }
+    } else {
+      drawRoundedRect(ctx, x - s.w/2, y - s.h/2, s.w, s.h, 4, s.color + '20', s.color);
+    }
+
+    ctx.fillStyle = s.color; ctx.font = '600 10px Outfit'; ctx.textAlign = 'center';
+    s.label.split('\n').forEach((line, li) => {
+      ctx.fillText(line, x, y + s.h/2 + 18 + li * 14);
+    });
+    ctx.fillStyle = '#666'; ctx.font = '10px Outfit';
+    ctx.fillText(s.desc, x, y - s.h/2 - 10);
+
+    if (i < stages.length - 1) {
+      ctx.beginPath(); ctx.moveTo(x + s.w/2 + 8, y); ctx.lineTo(x + gap - stages[i+1].w/2 - 8, y);
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  });
+};
+
+// ===== 09 CONVOLUTION =====
+let convKernel = [[1,1,1],[0,0,0],[-1,-1,-1]]; // horizontal edge
+let convAnimId = null;
+
+function setKernel(type) {
+  const kernels = {
+    edge_h: [[1,1,1],[0,0,0],[-1,-1,-1]],
+    edge_v: [[1,0,-1],[1,0,-1],[1,0,-1]],
+    sharpen: [[0,-1,0],[-1,5,-1],[0,-1,0]],
+    blur: [[1/9,1/9,1/9],[1/9,1/9,1/9],[1/9,1/9,1/9]]
+  };
+  convKernel = kernels[type];
+  resetConvolution();
+}
+
+// Simple 7x7 test image
+const testImage = [
+  [0,0,0,0,0,0,0],
+  [0,1,1,0,0,0,0],
+  [0,1,1,0,0,0,0],
+  [0,0,0,1,0,0,0],
+  [0,0,0,0,1,1,0],
+  [0,0,0,0,1,1,0],
+  [0,0,0,0,0,0,0]
+];
+
+function resetConvolution() {
+  cancelAnimationFrame(convAnimId);
+  document.getElementById('convLog').innerHTML = '<span class="info">Choose a kernel and click "Animate Convolution".</span>';
+  drawConvState(-1, -1, null);
+}
+
+function drawConvState(ki, kj, output) {
+  const c = document.getElementById('convCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const cellSize = 32;
+  const imgX = 40, imgY = 40;
+  const kernelX = 320, kernelY = 100;
+  const outX = 470, outY = 55;
+
+  // Input image
+  ctx.fillStyle = '#888'; ctx.font = '600 11px Outfit'; ctx.textAlign = 'center';
+  ctx.fillText('Input (7×7)', imgX + 3.5 * cellSize, 25);
+  testImage.forEach((row, i) => {
+    row.forEach((val, j) => {
+      const highlighted = ki >= 0 && i >= ki && i < ki + 3 && j >= kj && j < kj + 3;
+      ctx.fillStyle = highlighted ? `rgba(56,189,248,${0.3 + val * 0.5})` : `rgba(110,231,183,${val * 0.5})`;
+      ctx.fillRect(imgX + j * cellSize, imgY + i * cellSize, cellSize - 1, cellSize - 1);
+      ctx.fillStyle = val > 0.5 ? '#fff' : '#444';
+      ctx.font = '11px JetBrains Mono';
+      ctx.fillText(val.toFixed(0), imgX + j * cellSize + cellSize / 2, imgY + i * cellSize + cellSize / 2 + 4);
+    });
+  });
+
+  // Kernel
+  ctx.fillStyle = '#888'; ctx.font = '600 11px Outfit';
+  ctx.fillText('Kernel (3×3)', kernelX + 1.5 * cellSize, kernelY - 15);
+  convKernel.forEach((row, i) => {
+    row.forEach((val, j) => {
+      ctx.fillStyle = val > 0 ? `rgba(251,191,36,${Math.abs(val) * 0.4})` : val < 0 ? `rgba(239,68,68,${Math.abs(val) * 0.4})` : '#1a1a26';
+      ctx.fillRect(kernelX + j * cellSize, kernelY + i * cellSize, cellSize - 1, cellSize - 1);
+      ctx.fillStyle = '#ddd'; ctx.font = '10px JetBrains Mono';
+      ctx.fillText(val.toFixed(1), kernelX + j * cellSize + cellSize / 2, kernelY + i * cellSize + cellSize / 2 + 4);
+    });
+  });
+
+  // Output
+  if (output) {
+    ctx.fillStyle = '#888'; ctx.font = '600 11px Outfit';
+    ctx.fillText('Feature Map (5×5)', outX + 2.5 * cellSize, 40);
+    output.forEach((row, i) => {
+      row.forEach((val, j) => {
+        const norm = (val + 3) / 6;
+        ctx.fillStyle = val !== null ? `rgba(244,114,182,${Math.max(0, Math.min(1, norm * 0.8))})` : '#0d0d14';
+        ctx.fillRect(outX + j * cellSize, outY + i * cellSize, cellSize - 1, cellSize - 1);
+        if (val !== null) {
+          ctx.fillStyle = '#fff'; ctx.font = '9px JetBrains Mono';
+          ctx.fillText(val.toFixed(1), outX + j * cellSize + cellSize / 2, outY + i * cellSize + cellSize / 2 + 3);
+        }
+      });
+    });
+  }
+}
+
+function runConvolution() {
+  cancelAnimationFrame(convAnimId);
+  const output = Array.from({length: 5}, () => Array(5).fill(null));
+  const log = document.getElementById('convLog');
+  let i = 0, j = 0;
+
+  function step() {
+    let sum = 0;
+    for (let ki = 0; ki < 3; ki++) {
+      for (let kj = 0; kj < 3; kj++) {
+        sum += testImage[i + ki][j + kj] * convKernel[ki][kj];
+      }
+    }
+    output[i][j] = sum;
+    drawConvState(i, j, output);
+    log.innerHTML = `<span class="info">Position (${i},${j}):</span> sum of element-wise multiply = <span class="val">${sum.toFixed(1)}</span>`;
+
+    j++;
+    if (j > 4) { j = 0; i++; }
+    if (i <= 4) {
+      convAnimId = setTimeout(step, 200);
+    } else {
+      log.innerHTML += '\n<span class="highlight">Convolution complete! Feature map shows where the kernel pattern was detected.</span>';
+    }
+  }
+  step();
+}
+initFns['convolution'] = resetConvolution;
+
+// ===== 10 POOLING =====
+let poolData = null;
+function generatePoolData() {
+  poolData = Array.from({length: 6}, () => Array.from({length: 6}, () => Math.floor(Math.random() * 10)));
+}
+generatePoolData();
+
+function resetPooling() {
+  generatePoolData();
+  document.getElementById('poolLog').innerHTML = '<span class="info">Click Max or Average Pooling to see the operation.</span>';
+  drawPooling(null, null);
+}
+
+function drawPooling(result, type) {
+  const c = document.getElementById('poolCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const cell = 40, inX = 60, inY = 50;
+  const outX = 420, outY = 80;
+
+  const blockColors = ['rgba(110,231,183,0.15)', 'rgba(56,189,248,0.15)', 'rgba(244,114,182,0.15)',
+                       'rgba(251,191,36,0.15)', 'rgba(167,139,250,0.15)', 'rgba(239,68,68,0.15)',
+                       'rgba(110,231,183,0.25)', 'rgba(56,189,248,0.25)', 'rgba(244,114,182,0.25)'];
+
+  ctx.fillStyle = '#888'; ctx.font = '600 11px Outfit'; ctx.textAlign = 'center';
+  ctx.fillText('Input Feature Map (6×6)', inX + 3 * cell, 35);
+
+  poolData.forEach((row, i) => {
+    row.forEach((val, j) => {
+      const bi = Math.floor(i / 2), bj = Math.floor(j / 2);
+      ctx.fillStyle = blockColors[bi * 3 + bj];
+      ctx.fillRect(inX + j * cell, inY + i * cell, cell - 1, cell - 1);
+      ctx.fillStyle = '#ddd'; ctx.font = '13px JetBrains Mono';
+      ctx.fillText(val, inX + j * cell + cell / 2, inY + i * cell + cell / 2 + 5);
+    });
+  });
+
+  // Arrow
+  ctx.beginPath(); ctx.moveTo(inX + 6 * cell + 15, inY + 3 * cell);
+  ctx.lineTo(outX - 15, inY + 3 * cell);
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 1.5; ctx.stroke();
+  if (type) {
+    ctx.fillStyle = '#888'; ctx.font = '600 11px Outfit';
+    ctx.fillText(type === 'max' ? 'Max Pool 2×2' : 'Avg Pool 2×2', (inX + 6*cell + outX) / 2, inY + 3*cell - 10);
+  }
+
+  if (result) {
+    ctx.fillStyle = '#888'; ctx.font = '600 11px Outfit'; ctx.textAlign = 'center';
+    ctx.fillText('Output (3×3)', outX + 1.5 * cell, 65);
+    result.forEach((row, i) => {
+      row.forEach((val, j) => {
+        ctx.fillStyle = blockColors[i * 3 + j].replace('0.15', '0.35').replace('0.25', '0.45');
+        ctx.fillRect(outX + j * cell, outY + i * cell, cell - 1, cell - 1);
+        ctx.fillStyle = '#fff'; ctx.font = '600 13px JetBrains Mono';
+        ctx.fillText(typeof val === 'number' ? (Number.isInteger(val) ? val : val.toFixed(1)) : val, outX + j * cell + cell / 2, outY + i * cell + cell / 2 + 5);
+      });
+    });
+  }
+}
+
+function runPooling(type) {
+  const result = [];
+  const log = document.getElementById('poolLog');
+  let logText = '';
+
+  for (let i = 0; i < 3; i++) {
+    result[i] = [];
+    for (let j = 0; j < 3; j++) {
+      const block = [poolData[i*2][j*2], poolData[i*2][j*2+1], poolData[i*2+1][j*2], poolData[i*2+1][j*2+1]];
+      if (type === 'max') {
+        result[i][j] = Math.max(...block);
+        logText += `<span class="info">Block(${i},${j}):</span> [${block.join(',')}] → max = <span class="val">${result[i][j]}</span>  `;
+      } else {
+        result[i][j] = block.reduce((a, b) => a + b, 0) / 4;
+        logText += `<span class="info">Block(${i},${j}):</span> [${block.join(',')}] → avg = <span class="val">${result[i][j].toFixed(1)}</span>  `;
+      }
+      if (j === 2) logText += '\n';
+    }
+  }
+  drawPooling(result, type);
+  log.innerHTML = logText + `\n<span class="highlight">6×6 → 3×3: dimensions halved, ${type === 'max' ? 'strongest' : 'average'} signal preserved!</span>`;
+}
+initFns['pooling'] = function() { drawPooling(null, null); document.getElementById('poolLog').innerHTML = '<span class="info">Click Max or Average Pooling to see the operation.</span>'; };
+
+// ===== 11 FULL CNN PIPELINE =====
+const drawCanvasEl = document.getElementById('drawCanvas');
+const drawCtx = drawCanvasEl.getContext('2d');
+drawCtx.fillStyle = '#000';
+drawCtx.fillRect(0, 0, 140, 140);
+let isDrawing = false;
+
+drawCanvasEl.addEventListener('mousedown', (e) => { isDrawing = true; draw(e); });
+drawCanvasEl.addEventListener('mousemove', (e) => { if (isDrawing) draw(e); });
+drawCanvasEl.addEventListener('mouseup', () => isDrawing = false);
+drawCanvasEl.addEventListener('mouseleave', () => isDrawing = false);
+
+// Touch support
+drawCanvasEl.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; drawTouch(e); });
+drawCanvasEl.addEventListener('touchmove', (e) => { e.preventDefault(); if (isDrawing) drawTouch(e); });
+drawCanvasEl.addEventListener('touchend', () => isDrawing = false);
+
+function draw(e) {
+  const rect = drawCanvasEl.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  drawCtx.beginPath();
+  drawCtx.arc(x, y, 8, 0, Math.PI * 2);
+  drawCtx.fillStyle = '#fff';
+  drawCtx.fill();
+}
+
+function drawTouch(e) {
+  const rect = drawCanvasEl.getBoundingClientRect();
+  const touch = e.touches[0];
+  const x = touch.clientX - rect.left, y = touch.clientY - rect.top;
+  drawCtx.beginPath();
+  drawCtx.arc(x, y, 8, 0, Math.PI * 2);
+  drawCtx.fillStyle = '#fff';
+  drawCtx.fill();
+}
+
+function clearDrawCanvas() {
+  drawCtx.fillStyle = '#000';
+  drawCtx.fillRect(0, 0, 140, 140);
+  const pc = document.getElementById('cnnPipeCanvas');
+  pc.getContext('2d').clearRect(0, 0, pc.width, pc.height);
+  document.getElementById('cnnLog').innerHTML = '';
+}
+
+function processCNN() {
+  const log = document.getElementById('cnnLog');
+  log.innerHTML = '<span class="info">Processing through simulated CNN...</span>\n';
+
+  // Get image data downsampled to 7x7
+  const imgData = drawCtx.getImageData(0, 0, 140, 140);
+  const small = [];
+  for (let i = 0; i < 7; i++) {
+    small[i] = [];
+    for (let j = 0; j < 7; j++) {
+      let sum = 0, count = 0;
+      for (let di = 0; di < 20; di++) {
+        for (let dj = 0; dj < 20; dj++) {
+          const idx = ((i * 20 + di) * 140 + (j * 20 + dj)) * 4;
+          sum += imgData.data[idx]; count++;
+        }
+      }
+      small[i][j] = sum / count / 255;
+    }
+  }
+
+  // Simulate conv1 (horizontal edge)
+  const conv1 = [];
+  for (let i = 0; i < 5; i++) {
+    conv1[i] = [];
+    for (let j = 0; j < 5; j++) {
+      let s = 0;
+      for (let ki = 0; ki < 3; ki++) for (let kj = 0; kj < 3; kj++) {
+        s += small[i+ki][j+kj] * [[1,1,1],[0,0,0],[-1,-1,-1]][ki][kj];
+      }
+      conv1[i][j] = Math.max(0, s); // ReLU
+    }
+  }
+
+  // Simulate pool
+  const pool1 = [];
+  for (let i = 0; i < 2; i++) { pool1[i] = []; for (let j = 0; j < 2; j++) {
+    pool1[i][j] = Math.max(conv1[i*2][j*2], conv1[i*2][j*2+1], conv1[i*2+1][j*2], conv1[i*2+1][j*2+1]);
+  }}
+
+  // Draw pipeline
+  const pc = document.getElementById('cnnPipeCanvas');
+  const pctx = pc.getContext('2d');
+  pctx.clearRect(0, 0, pc.width, pc.height);
+
+  const cs = 16;
+
+  // Stage 1: Input
+  pctx.fillStyle = '#888'; pctx.font = '600 10px Outfit'; pctx.textAlign = 'center';
+  pctx.fillText('Input 7×7', 20 + 3.5 * cs, 20);
+  small.forEach((row, i) => row.forEach((v, j) => {
+    pctx.fillStyle = `rgba(110,231,183,${v})`;
+    pctx.fillRect(20 + j * cs, 30 + i * cs, cs - 1, cs - 1);
+  }));
+
+  // Arrow
+  pctx.beginPath(); pctx.moveTo(20 + 7*cs + 10, 30 + 3.5*cs); pctx.lineTo(190, 30 + 3.5*cs);
+  pctx.strokeStyle = '#444'; pctx.stroke();
+  pctx.fillStyle = '#666'; pctx.font = '9px Outfit'; pctx.fillText('Conv+ReLU', 165, 30 + 3.5*cs - 8);
+
+  // Stage 2: Conv output
+  pctx.fillStyle = '#888'; pctx.font = '600 10px Outfit';
+  pctx.fillText('Conv1 5×5', 200 + 2.5 * cs, 20);
+  const maxConv = Math.max(...conv1.flat(), 0.01);
+  conv1.forEach((row, i) => row.forEach((v, j) => {
+    pctx.fillStyle = `rgba(56,189,248,${v / maxConv})`;
+    pctx.fillRect(200 + j * cs, 30 + i * cs + cs, cs - 1, cs - 1);
+  }));
+
+  // Arrow
+  pctx.beginPath(); pctx.moveTo(200 + 5*cs + 10, 30 + 3.5*cs); pctx.lineTo(370, 30 + 3.5*cs);
+  pctx.strokeStyle = '#444'; pctx.stroke();
+  pctx.fillStyle = '#666'; pctx.font = '9px Outfit'; pctx.fillText('MaxPool 2×2', 340, 30 + 3.5*cs - 8);
+
+  // Stage 3: Pool output
+  const cs2 = 24;
+  pctx.fillStyle = '#888'; pctx.font = '600 10px Outfit';
+  pctx.fillText('Pool1 2×2', 380 + cs2, 20);
+  const maxPool = Math.max(...pool1.flat(), 0.01);
+  pool1.forEach((row, i) => row.forEach((v, j) => {
+    pctx.fillStyle = `rgba(167,139,250,${v / maxPool})`;
+    pctx.fillRect(380 + j * cs2, 40 + i * cs2, cs2 - 1, cs2 - 1);
+  }));
+
+  // Arrow to FC
+  pctx.beginPath(); pctx.moveTo(380 + 2*cs2 + 10, 40 + cs2); pctx.lineTo(490, 40 + cs2);
+  pctx.strokeStyle = '#444'; pctx.stroke();
+  pctx.fillStyle = '#666'; pctx.font = '9px Outfit'; pctx.fillText('Flatten → FC', 470, 40 + cs2 - 8);
+
+  // Fake output probs
+  const flat = pool1.flat();
+  const total = flat.reduce((a, b) => a + b, 0.01);
+  const fakeProbs = Array.from({length: 10}, (_, i) => {
+    const noise = Math.random() * 0.5;
+    return noise + (flat[i % flat.length] || 0) / total;
+  });
+  const sumP = fakeProbs.reduce((a, b) => a + b);
+  const probs = fakeProbs.map(p => p / sumP);
+
+  // Bar chart
+  const barX = 500, barY = 15, barH = 20, barMaxW = 150;
+  pctx.fillStyle = '#888'; pctx.font = '600 10px Outfit'; pctx.textAlign = 'left';
+  pctx.fillText('Output Probabilities', barX, barY);
+  const maxProb = Math.max(...probs);
+  probs.forEach((p, i) => {
+    const y = barY + 10 + i * (barH + 3);
+    const w = p / maxProb * barMaxW;
+    pctx.fillStyle = p === maxProb ? 'rgba(244,114,182,0.6)' : 'rgba(244,114,182,0.2)';
+    pctx.fillRect(barX + 20, y, w, barH - 2);
+    pctx.fillStyle = p === maxProb ? '#f472b6' : '#666';
+    pctx.font = '11px JetBrains Mono';
+    pctx.fillText(i.toString(), barX + 5, y + 14);
+    pctx.fillText((p * 100).toFixed(1) + '%', barX + 25 + w, y + 14);
+  });
+
+  const predicted = probs.indexOf(maxProb);
+  log.innerHTML += `<span class="highlight">Conv1:</span> Applied 3×3 edge filter + ReLU → 5×5 feature map\n`;
+  log.innerHTML += `<span class="info">Pool1:</span> 2×2 max pooling → 2×2 reduced map\n`;
+  log.innerHTML += `<span class="val">FC + Softmax:</span> Flattened to ${flat.length} values → 10 class probabilities\n`;
+  log.innerHTML += `<span class="highlight">Predicted digit: ${predicted}</span> (${(maxProb * 100).toFixed(1)}% confidence)\n`;
+  log.innerHTML += `<span class="info">(Note: weights are random — this is a structural demo, not a trained model)</span>`;
+}
+
+initFns['cnn-full'] = function() {};
+</script>
+</body>
+</html>
